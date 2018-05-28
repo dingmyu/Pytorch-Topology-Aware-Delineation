@@ -32,7 +32,7 @@ class conv2DBatchNormRelu(nn.Module):
 class sharedBottom(nn.Module):
     def __init__(self,):
         super(sharedBottom, self).__init__()
-        self.conv1 = conv2DBatchNormRelu(4, 16, 2) 
+        self.conv1 = conv2DBatchNormRelu(3, 16, 2) 
         self.conv2a1 = conv2DBatchNormRelu(16, 16, 2)
         self.conv2a2 = conv2DBatchNormRelu(16,8)
         self.conv2a3 = conv2DBatchNormRelu(8,4)
@@ -51,9 +51,7 @@ class sharedBottom(nn.Module):
         self.conv11_6 = conv2DBatchNormRelu(32,64,1)
         self.conv11_5 = conv2DBatchNormRelu(64,128,1)
 
-    def forward(self, x, y):
-        y = nn.Upsample(size=(705,833),mode='bilinear')(y)
-        x = torch.cat([x, y], dim = 1)
+    def forward(self, x):
         x = self.conv1(x)
         x1 = self.conv2a1(x)
         x2 = self.conv2a2(x1)
@@ -94,7 +92,7 @@ class laneNet(nn.Module):
         x = nn.Upsample(size=(177,209),mode='bilinear')(x)
         x = self.conv13(x)
         x = self.conv14(x)
-        return x        
+        return x
 
 
 class Net(nn.Module):
@@ -116,17 +114,17 @@ class Net(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def forward(self, x, y): 
-        x = self.bottom(x, y)
+    def forward(self, x): 
+        x = self.bottom(x)
         x_sem = self.sem_seg(x)
         return x_sem
 
 class VGG(nn.Module):
     def __init__(self):
         super(VGG, self).__init__()
-        self.x64 = nn.Conv2d(64,1,kernel_size=1, padding = 0, bias = False)
-        self.x128 = nn.Conv2d(128,1,kernel_size=1, padding = 0, bias = False)
-        self.x256 = nn.Conv2d(256,1,kernel_size=1, padding = 0, bias = False)
+        self.x64 = nn.Conv2d(1,64,kernel_size=1, padding = 0, bias = False)
+        self.x128 = nn.Conv2d(1,128,kernel_size=1, padding = 0, bias = False)
+        self.x256 = nn.Conv2d(1,256,kernel_size=1, padding = 0, bias = False)
         self.x64.weight = torch.nn.Parameter(torch.ones((64,1,1,1)))
         self.x128.weight = torch.nn.Parameter(torch.ones((128,1,1,1)))
         self.x256.weight = torch.nn.Parameter(torch.ones((256,1,1,1)))
@@ -149,4 +147,4 @@ class VGG(nn.Module):
         x256 = self.x256(x)
         x256 = self.conv3_4(x256)
         x_vgg = torch.cat([x64, x128, x256], dim = 1)
-        return x_vgg
+        return torch.nn.MSELoss()(x_vgg, torch.zeros_like(x_vgg))
